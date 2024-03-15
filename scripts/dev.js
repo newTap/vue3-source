@@ -14,7 +14,7 @@ const dir = fs.readdirSync('./packages').filter((f) => {
 async function build(target){
   // execa 执行命令 
   // -c 执行rollup 配置文件， 环境变量env
-   await execa('rollup', ['-c', '--environment', `TARGET:${target}`], {
+   await execa('rollup', ['-cw', '--environment', `TARGET:${target}`], {
     // 在终端打印子进程的输出
     stdio: 'inherit'
   })
