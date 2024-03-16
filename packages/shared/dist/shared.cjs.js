@@ -1,8 +1,6 @@
 'use strict';
 
-const names = 'shared';
-const b = "2";
+const isObject = (value) => typeof value === 'object' && value !== null;
 
-exports.b = b;
-exports.names = names;
+exports.isObject = isObject;
 //# sourceMappingURL=shared.cjs.js.map

@@ -1,1 +1,1 @@
-{"version":3,"file":"shared.esm-bundler.js","sources":["../src/index.ts"],"sourcesContent":["const names = 'shared'\nconst b=\"2\"\n\nexport {names, b}"],"names":[],"mappings":"AAAM,MAAA,KAAK,GAAG,SAAQ;AAChB,MAAA,CAAC,GAAC;;;;"}
+{"version":3,"file":"shared.esm-bundler.js","sources":["../src/index.ts"],"sourcesContent":["export const isObject =  (value:unknown) => typeof value === 'object' && value !== null"],"names":[],"mappings":"AAAa,MAAA,QAAQ,GAAI,CAAC,KAAa,KAAK,OAAO,KAAK,KAAK,QAAQ,IAAI,KAAK,KAAK;;;;"}

@@ -1,4 +1,1 @@
-const names = 'shared'
-const b="2"
-
-export {names, b}
+export const isObject =  (value:unknown) => typeof value === 'object' && value !== null
