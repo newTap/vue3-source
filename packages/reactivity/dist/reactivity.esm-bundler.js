@@ -1,8 +1,59 @@
 const isObject = (value) => typeof value === 'object' && value !== null;
 
+const get = createGetter();
+const readonlyGet = createGetter(true);
+const shallowReactiveGet = createGetter(false, true);
+const shallowReadonlyGet = createGetter(true, true);
+const set = createSetter();
+const shallowSet = createSetter(true);
+const reactiveHandler = {
+    get,
+    set
+};
+const readonlyHandler = {
+    get: readonlyGet,
+    set: function () {
+        console.error('只读无法修改');
+        return false;
+    }
+};
+const shallowReactiveHandler = {
+    get: shallowReactiveGet,
+    set: shallowSet
+};
+const shallowReadonlyHandler = {
+    get: shallowReadonlyGet,
+    set: function () {
+        console.error('只读无法修改');
+        return false;
+    }
+};
+function createGetter(isReadonly = false, isShallow = false) {
+    return function get(target, key, receiver) {
+        console.log(`get: ${key}`);
+        const res = Reflect.get(target, key, receiver);
+        // 递归处理,为了实现深层次的响应式
+        //! 只有调用到了get方法，才会进行递归，并没有将所有的子对象递归。属于优化
+        if (!isShallow && isObject(res)) {
+            console.log('调用递归', res);
+            // !保证返回的对象是一个代理对象
+            // !否则在第一次进行set操作的时候，会导致无法监听到set的操作
+            return isReadonly ? readonly(res) : reactive(res);
+        }
+        return res;
+    };
+}
+function createSetter(isShallow = false) {
+    return function set(target, value, receiver) {
+        console.log(`set: `, value);
+        return Reflect.set(target, value, receiver);
+    };
+}
+
 // 使用WeakMap存储代理对象
 // WeakMap的键是弱引用，不会影响垃圾回收
 const reactiveMap = new WeakMap();
+const readonlyMap = new WeakMap();
 /**
  * reactive
  *
@@ -17,7 +68,7 @@ const reactiveMap = new WeakMap();
  * @return  {<T><data>}        [返回一个对象的响应式代理。]
  */
 function reactive(data) {
-    return createReactiveObject(data);
+    return createReactiveObject(data, false, false, reactiveHandler);
 }
 /**
  * [export description]
@@ -31,7 +82,7 @@ function reactive(data) {
  * @return  {<T><data>}        [return 返回一个原值的只读代理]
  */
 function readonly(data) {
-    return createReactiveObject(data, true);
+    return createReactiveObject(data, true, false, readonlyHandler);
 }
 /**
  * [export description]
@@ -46,10 +97,10 @@ function readonly(data) {
  * @return  {<T><data>}        [return 一个没有深度代理的响应对象]
  */
 function shallowReactive(data) {
-    return createReactiveObject(data, true, false);
+    return createReactiveObject(data, true, false, shallowReactiveHandler);
 }
 function shallowReadonly(data) {
-    return createReactiveObject(data, true, false);
+    return createReactiveObject(data, true, false, shallowReadonlyHandler);
 }
 /**
  * [createReactiveObject description]
@@ -60,39 +111,19 @@ function shallowReadonly(data) {
  *
  * @return  {T}              [return 数据的代理对象]
  */
-function createReactiveObject(data, isReadonly = false, isShallow = true) {
+function createReactiveObject(data, isReadonly = false, isShallow = true, handlers) {
     // 非对象类型直接返回
     if (!isObject(data)) {
         console.error('请给一个对象');
         return data;
     }
+    const proxyMap = isReadonly ? readonlyMap : reactiveMap;
     // 校验是否已有代理对象
-    if (reactiveMap.has(data))
-        return reactiveMap.get(data);
+    if (proxyMap.has(data))
+        return proxyMap.get(data);
     // 若目标已经是一个代理对象，则需要返回该对象 待完善
-    const proxy = new Proxy(data, {
-        set: function (target, value, receiver) {
-            console.log(`set: `, value, isReadonly);
-            if (isReadonly) {
-                throw new Error("该对象是只读无法修改属性");
-            }
-            return Reflect.set(target, value, receiver);
-        },
-        get: function (target, key, receiver) {
-            console.log(`get: ${key}`);
-            const res = Reflect.get(target, key, receiver);
-            // 递归处理,为了实现深层次的响应式
-            //! 只有调用到了get方法，才会进行递归，并没有将所有的子对象递归。属于优化
-            if (isShallow && isObject(res)) {
-                console.log('调用递归', isReadonly);
-                // !保证返回的对象是一个代理对象
-                // !否则在第一次进行set操作的时候，会导致无法监听到set的操作
-                return isReadonly ? readonly(res) : reactive(res);
-            }
-            return res;
-        }
-    });
-    reactiveMap.set(data, proxy);
+    const proxy = new Proxy(data, handlers);
+    proxyMap.set(data, proxy);
     return proxy;
 }
 
