@@ -3,6 +3,72 @@ var VueReactivity = (function (exports) {
 
   const isObject = (value) => typeof value === 'object' && value !== null;
 
+  let uid = 0;
+  // 用于记录当前正在执行的副作用函数
+  let activeEffect;
+  // 用户基于当前正在执行的副作用函数队列
+  // !如果不适用队列形式存储，会导致effect嵌套时，activeEffect无法被正确获取
+  // effect(function () {
+  //   let name = proxy.name
+  //   effect(function () {
+  //     let name = proxy.name
+  //   })
+  //   let list = proxy.list
+  // })
+  let activeEffectPool = [];
+  // 副作用函数的触发
+  function effect(fn, options) {
+      console.log('触发依赖');
+      const effectFn = function reactiveEffect() {
+          // 防止effect函数的的报错，对代码逻辑的影响
+          try {
+              activeEffect = fn;
+              activeEffectPool.push(activeEffect);
+              fn();
+          }
+          finally {
+              activeEffectPool.pop();
+              activeEffect = activeEffectPool[activeEffectPool.length - 1];
+          }
+      };
+      effectFn.fn = fn; // 保存用户的原方法
+      effectFn.options = options; // 保存用户的原配置
+      effectFn.id = uid++; // effect 的ID
+      effectFn._isEffect = true; // 标记是否为 effect
+      if (!options?.lazy)
+          fn();
+      return effectFn;
+  }
+  // 用于存储依赖的集合
+  const targetActiveMap = new WeakMap();
+  // 依赖的收集
+  function track(target, key, type) {
+      console.log('开始收集依赖');
+      // 只有在副作用函数调用期间才做依赖的收集
+      if (!activeEffectPool.length)
+          return false;
+      // 依赖集合的数据结构，第一层使用WeakMap，利用它的弱引用
+      // target作为key值，依赖集合作为value值
+      let targetMap = targetActiveMap.get(target);
+      if (!targetMap)
+          targetActiveMap.set(target, (targetMap = new Map()));
+      // 第二层使用Map数据结构
+      // key作为key值，依赖集合作为value值
+      let dep = targetMap.get(key);
+      // 第三层使用Set数据结构,当相同数据添加值set中会做自动去重操作
+      // 用于存放对应的副作用函数
+      if (!dep)
+          targetMap.set(key, (dep = new Set()));
+      // 为对应的key添加副作用函数
+      dep.add(activeEffectPool[activeEffectPool.length - 1]);
+  }
+
+  var TrackOpTypes;
+  (function (TrackOpTypes) {
+      TrackOpTypes["GET"] = "get";
+      TrackOpTypes["HAS"] = "has";
+  })(TrackOpTypes || (TrackOpTypes = {}));
+
   const get = createGetter();
   const readonlyGet = createGetter(true);
   const shallowReactiveGet = createGetter(false, true);
@@ -35,6 +101,11 @@ var VueReactivity = (function (exports) {
       return function get(target, key, receiver) {
           console.log(`get: ${key}`);
           const res = Reflect.get(target, key, receiver);
+          // 收集 effect
+          if (!isReadonly) {
+              console.log('收集 effect');
+              track(target, key, TrackOpTypes.GET);
+          }
           // 递归处理,为了实现深层次的响应式
           //! 只有调用到了get方法，才会进行递归，并没有将所有的子对象递归。属于优化
           if (!isShallow && isObject(res)) {
@@ -49,7 +120,11 @@ var VueReactivity = (function (exports) {
   function createSetter(isShallow = false) {
       return function set(target, value, receiver) {
           console.log(`set: `, value);
-          return Reflect.set(target, value, receiver);
+          let ref = Reflect.set(target, value, receiver);
+          // 执行 effect
+          // 注意要区分  数组  与    对象
+          // 注意区分 添加   与    修改
+          return ref;
       };
   }
 
@@ -130,6 +205,7 @@ var VueReactivity = (function (exports) {
       return proxy;
   }
 
+  exports.effect = effect;
   exports.reactive = reactive;
   exports.readonly = readonly;
   exports.shallowReactive = shallowReactive;

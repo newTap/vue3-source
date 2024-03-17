@@ -1,5 +1,7 @@
-import { isObject } from "@vue/shared"
-import { reactive, readonly } from "."
+import { isArray, isObject } from "@vue/shared"
+import { reactive, readonly } from "./reactive"
+import { track } from "./effect"
+import { TrackOpTypes } from "./constants"
 
 const get = createGetter()
 const readonlyGet = createGetter(true)
@@ -39,6 +41,11 @@ function createGetter(isReadonly = false, isShallow = false) {
   return function get (target: object, key:string|symbol, receiver: object) {
       console.log(`get: ${key as string}`)
       const res = Reflect.get(target, key, receiver)
+      // 收集 effect
+      if(!isReadonly){
+        console.log('收集 effect')
+        track(target, key, TrackOpTypes.GET)
+      }
       // 递归处理,为了实现深层次的响应式
       //! 只有调用到了get方法，才会进行递归，并没有将所有的子对象递归。属于优化
       if(!isShallow && isObject(res)) {
@@ -54,6 +61,14 @@ function createGetter(isReadonly = false, isShallow = false) {
 function createSetter(isShallow = false){
   return function set(target:object, value:string | symbol, receiver:object) {
       console.log(`set: `, value)
-      return Reflect.set(target, value, receiver)
+      let ref = Reflect.set(target, value, receiver)
+      // 1.先处理数组and修改
+      if(isArray(target)){
+        
+      }
+      // 执行 effect
+      // 注意要区分  数组  与    对象
+      // 注意区分 添加   与    修改
+      return ref
     }
 }
