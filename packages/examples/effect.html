@@ -1,4 +1,3 @@
-!
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -10,6 +9,7 @@
 </head>
 
 <body>
+  <div id="app"></div>
   <script src="../reactivity/dist/reactivity.global.js"></script>
   <script>
     let obj = { name: '笑话', list: [1, 2, 3], obj: { name: '123' } }
@@ -17,16 +17,14 @@
     let proxy = reactive(obj)
 
     effect(function () {
-      let name = proxy.name
-      console.log('effect1')
-      effect(function () {
-        console.log('effect2')
-        let name = proxy.name
-      })
-      let list = proxy.list
+      app.innerText = `${proxy.name}:${proxy[1]}`
+    })
+    effect(function () {
+      proxy.list[1]
     })
     setTimeout(() => {
-      proxy.list[1] = 3
+      proxy.list.pop()
+      proxy.name = '123'
     }, 1000)
     // effect(function () {
     //   let name = proxy.list

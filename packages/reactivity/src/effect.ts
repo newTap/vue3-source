@@ -1,4 +1,5 @@
-import { TrackOpTypes } from "./constants";
+import { isArray, isSymbol } from "@vue/shared";
+import { TrackOpTypes, TriggerOpTypes } from "./constants";
 
 type EffectOptions = {
  lazy?: false
@@ -38,17 +39,21 @@ export function effect (fn: () => void, options?: EffectOptions){
   effectFn.options = options // 保存用户的原配置
   effectFn.id = uid++ // effect 的ID
   effectFn._isEffect = true // 标记是否为 effect
-  if(!options?.lazy) fn();
+  if(!options?.lazy) effectFn();
   return effectFn
 }
 
+type Deps =  Set<() => void>
+
+type KeyToDepMap = Map<any, Deps>
+
 // 用于存储依赖的集合
-const targetActiveMap = new WeakMap()
+const targetActiveMap = new WeakMap<object, KeyToDepMap>()
 // 依赖的收集
 export function track(target:object, key: string | symbol, type: TrackOpTypes){
   console.log('开始收集依赖')
   // 只有在副作用函数调用期间才做依赖的收集
-  if(!activeEffectPool.length) return false
+  if(!activeEffect) return false
 
   // 依赖集合的数据结构，第一层使用WeakMap，利用它的弱引用
   // target作为key值，依赖集合作为value值
@@ -62,5 +67,53 @@ export function track(target:object, key: string | symbol, type: TrackOpTypes){
   if(!dep) targetMap.set(key, (dep = new Set()))
 
   // 为对应的key添加副作用函数
-  dep.add(activeEffectPool[activeEffectPool.length-1])
+  dep.add(activeEffect)
+
+}
+
+// 依赖是触发
+export function trigger(target:object, key: string | symbol, type: TriggerOpTypes, value: unknown, oldValue: unknown){
+  let targetMap = targetActiveMap.get(target)
+  console.log('targetActiveMap', targetActiveMap, target, key, value)
+  // 当前的修改没有依赖
+  if(!targetMap) {
+    console.log('没有当前的target依赖映射', target)
+    return false
+  }
+  let deeps:Deps[] = []
+
+  if(isArray(target) && key === 'length'){
+    // 单独对修改数组的length操作做处理
+    // !当proxy对象没有代理length属性，却修改了数组的length，会导致没有对应的依赖
+    //  effect(function () {
+    //   app.innerText = `${proxy.list[2]}`
+    // })
+    // setTimeout(() => {
+    //   proxy.list.length = 1
+    // }, 1000)
+    // 如果target是数组。并且当前的key是length。value的值大于target的length
+    // 证明数组的长度发生了变化(变小了)
+    targetMap.forEach((dep, key) => {
+      if(key === 'length' || (!isSymbol(key) &&  Number(key) >= Number(value))){
+        deeps.push(dep)
+      }
+    });
+  }else{
+    // 可能是对象的操作
+    let dep = targetMap.get(key)
+    if(dep){
+      deeps.push(dep)
+    }
+  }
+  for (let dep of deeps) {
+    if(dep){
+      triggerEffects(dep)
+    }
+  }
+}
+
+function triggerEffects(dep:Deps){
+  for (const effect of dep.keys()) {
+    effect()
+  }
 }

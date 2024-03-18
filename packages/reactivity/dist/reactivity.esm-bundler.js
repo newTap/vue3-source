@@ -1,4 +1,9 @@
 const isObject = (value) => typeof value === 'object' && value !== null;
+const isArray = Array.isArray;
+const isString = (val) => typeof val === 'string';
+const isSymbol = (val) => typeof val === 'symbol';
+const isIntegerKey = (key) => isString(key) && key[0] != '_' && parseInt(key, 10) + '' === key;
+const hasOwn = (target, key) => target.hasOwnProperty(key);
 
 let uid = 0;
 // 用于记录当前正在执行的副作用函数
@@ -33,7 +38,7 @@ function effect(fn, options) {
     effectFn.id = uid++; // effect 的ID
     effectFn._isEffect = true; // 标记是否为 effect
     if (!options?.lazy)
-        fn();
+        effectFn();
     return effectFn;
 }
 // 用于存储依赖的集合
@@ -42,7 +47,7 @@ const targetActiveMap = new WeakMap();
 function track(target, key, type) {
     console.log('开始收集依赖');
     // 只有在副作用函数调用期间才做依赖的收集
-    if (!activeEffectPool.length)
+    if (!activeEffect)
         return false;
     // 依赖集合的数据结构，第一层使用WeakMap，利用它的弱引用
     // target作为key值，依赖集合作为value值
@@ -57,7 +62,52 @@ function track(target, key, type) {
     if (!dep)
         targetMap.set(key, (dep = new Set()));
     // 为对应的key添加副作用函数
-    dep.add(activeEffectPool[activeEffectPool.length - 1]);
+    dep.add(activeEffect);
+}
+// 依赖是触发
+function trigger(target, key, type, value, oldValue) {
+    let targetMap = targetActiveMap.get(target);
+    console.log('targetActiveMap', targetActiveMap, target, key, value);
+    // 当前的修改没有依赖
+    if (!targetMap) {
+        console.log('没有当前的target依赖映射', target);
+        return false;
+    }
+    let deeps = [];
+    if (isArray(target) && key === 'length') {
+        // 单独对修改数组的length操作做处理
+        // !当proxy对象没有代理length属性，却修改了数组的length，会导致没有对应的依赖
+        //  effect(function () {
+        //   app.innerText = `${proxy.list[2]}`
+        // })
+        // setTimeout(() => {
+        //   proxy.list.length = 1
+        // }, 1000)
+        // 如果target是数组。并且当前的key是length。value的值大于target的length
+        // 证明数组的长度发生了变化(变小了)
+        targetMap.forEach((dep, key) => {
+            if (key === 'length' || (!isSymbol(key) && Number(key) >= Number(value))) {
+                deeps.push(dep);
+            }
+        });
+    }
+    else {
+        // 可能是对象的操作
+        let dep = targetMap.get(key);
+        if (dep) {
+            deeps.push(dep);
+        }
+    }
+    for (let dep of deeps) {
+        if (dep) {
+            triggerEffects(dep);
+        }
+    }
+}
+function triggerEffects(dep) {
+    for (const effect of dep.keys()) {
+        effect();
+    }
 }
 
 var TrackOpTypes;
@@ -65,6 +115,11 @@ var TrackOpTypes;
     TrackOpTypes["GET"] = "get";
     TrackOpTypes["HAS"] = "has";
 })(TrackOpTypes || (TrackOpTypes = {}));
+var TriggerOpTypes;
+(function (TriggerOpTypes) {
+    TriggerOpTypes["SET"] = "set";
+    TriggerOpTypes["ADD"] = "add";
+})(TriggerOpTypes || (TriggerOpTypes = {}));
 
 const get = createGetter();
 const readonlyGet = createGetter(true);
@@ -96,7 +151,7 @@ const shallowReadonlyHandler = {
 };
 function createGetter(isReadonly = false, isShallow = false) {
     return function get(target, key, receiver) {
-        console.log(`get: ${key}`);
+        console.log(`get: `, key);
         const res = Reflect.get(target, key, receiver);
         // 收集 effect
         if (!isReadonly) {
@@ -115,12 +170,28 @@ function createGetter(isReadonly = false, isShallow = false) {
     };
 }
 function createSetter(isShallow = false) {
-    return function set(target, value, receiver) {
-        console.log(`set: `, value);
-        let ref = Reflect.set(target, value, receiver);
+    return function set(target, key, value, receiver) {
+        console.log(`set: `, key, value, target);
+        // !当对数组做操作(删除,或增加)，会先调用对应下标的set操作，然后再调用length的set操作
+        // !当对数组做操作时，对应的key会被处理为string类型
+        // !当对数组的length直接做操作时，会直接调用length的set操作，无法触发对应下标的set操作
+        // 1.先区分属于与对象的操作
+        // 2.再区分是修改操作，还是增加操作
+        let hasKey = isArray(target) && isIntegerKey(key) ?
+            Number(key) < target.length : hasOwn(target, key);
+        target[key];
+        let ref = Reflect.set(target, key, value, receiver);
         // 执行 effect
-        // 注意要区分  数组  与    对象
-        // 注意区分 添加   与    修改
+        if (hasKey) {
+            // 修改操作
+            console.log('修改操作');
+            trigger(target, key, TriggerOpTypes.SET, value);
+        }
+        else {
+            // 新增操作
+            console.log('新增操作');
+            trigger(target, key, TriggerOpTypes.ADD, value);
+        }
         return ref;
     };
 }
