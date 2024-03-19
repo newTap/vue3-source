@@ -68,7 +68,6 @@ export function track(target:object, key: string | symbol, type: TrackOpTypes){
 
   // 为对应的key添加副作用函数
   dep.add(activeEffect)
-
 }
 
 // 依赖是触发
