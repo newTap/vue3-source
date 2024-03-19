@@ -1,6 +1,7 @@
 'use strict';
 
 const isObject = (value) => typeof value === 'object' && value !== null;
+const isFunction = (value) => typeof value === 'function';
 const isArray = Array.isArray;
 const isString = (val) => typeof val === 'string';
 const isSymbol = (val) => typeof val === 'symbol';
@@ -13,6 +14,7 @@ const isRef = (val) => !!val.__v_isRef;
 exports.hasChange = hasChange;
 exports.hasOwn = hasOwn;
 exports.isArray = isArray;
+exports.isFunction = isFunction;
 exports.isIntegerKey = isIntegerKey;
 exports.isObj = isObj;
 exports.isObject = isObject;

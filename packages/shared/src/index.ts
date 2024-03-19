@@ -1,5 +1,7 @@
 export const isObject =  (value:unknown) => typeof value === 'object' && value !== null
 
+export const isFunction = (value:unknown): value is Function => typeof value === 'function'
+
 export const isArray = Array.isArray
 
 export const isString = (val: unknown): val is string => typeof val === 'string'

@@ -1,4 +1,5 @@
 const isObject = (value) => typeof value === 'object' && value !== null;
+const isFunction = (value) => typeof value === 'function';
 const isArray = Array.isArray;
 const isString = (val) => typeof val === 'string';
 const isSymbol = (val) => typeof val === 'symbol';
@@ -8,5 +9,5 @@ const hasOwn = (target, key) => target.hasOwnProperty(key);
 const hasChange = (value, oldValue) => value !== oldValue;
 const isRef = (val) => !!val.__v_isRef;
 
-export { hasChange, hasOwn, isArray, isIntegerKey, isObj, isObject, isRef, isString, isSymbol };
+export { hasChange, hasOwn, isArray, isFunction, isIntegerKey, isObj, isObject, isRef, isString, isSymbol };
 //# sourceMappingURL=shared.esm-bundler.js.map

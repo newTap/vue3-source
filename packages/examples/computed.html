@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+
+<body>
+  <div id="app"></div>
+  <script src="../reactivity/dist/reactivity.global.js"></script>
+  <script>
+    let obj = { name: '笑话', list: [1, 2, 3], obj: { name: '123' } }
+    const { computed, reactive, ref } = VueReactivity;
+    let proxy = reactive(obj)
+    let refData = ref(10)
+    // 默认只给一个set函数。，用来计算响应式数据对象的值
+    const data = computed({
+      get: () => {
+        // 当computed没有被使用的时候，函数体不会被执行
+        console.log('开始计算computed了', proxy)
+        return refData.value + '123'
+      },
+      set: (value) => refData.value = value
+    })
+    // 只有被调用的时候才会执行
+    console.log(data.value)
+    // 如果数据没有跟新，多次的时候会直接使用缓存
+    console.log(data.value)
+
+    setTimeout(() => {
+      // 响应式对象更新后computed不会立即执行
+      refData.value = '猪小明'
+      // 此处有一个问题，当修改完响应式数据对象之后，computed没有再次执行
+      console.log('refData', refData)
+      // 当重新使用computed之后，computed才会重新计算
+      console.log(data.value)
+      // 当多次调用computed会从缓存中取值
+      console.log(data.value)
+    }, 2000)
+  </script>
+</body>
+
+</html>

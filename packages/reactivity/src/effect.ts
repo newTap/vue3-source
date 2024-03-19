@@ -2,10 +2,18 @@ import { isArray, isSymbol } from "@vue/shared";
 import { TrackOpTypes, TriggerOpTypes } from "./constants";
 
 type EffectOptions = {
- lazy?: false
+ lazy?: boolean
+ sch?:() => void
 }
 
-type ActiveEffectType= () => void
+type ActiveEffectType= {
+    (): void;
+    fn: () => void;
+    options: EffectOptions | undefined;
+    id: number;
+    _isEffect: boolean;
+}
+
 let uid = 0;
 // 用于记录当前正在执行的副作用函数
 let activeEffect: ActiveEffectType;
@@ -21,20 +29,19 @@ let activeEffect: ActiveEffectType;
 let activeEffectPool: ActiveEffectType[] = []
 
 // 副作用函数的触发
-export function effect (fn: () => void, options?: EffectOptions){
-  console.log('触发依赖')
+export function effect (fn: () => void, options?: EffectOptions):ActiveEffectType{
   const effectFn = function reactiveEffect(){
     // 防止effect函数的的报错，对代码逻辑的影响
     try{
-      activeEffect = fn
+      activeEffect = effectFn
       activeEffectPool.push(activeEffect)
-      fn()
+      return fn()
     }finally{
       activeEffectPool.pop()
       activeEffect = activeEffectPool[activeEffectPool.length - 1]
     }
   }
- 
+
   effectFn.fn = fn // 保存用户的原方法
   effectFn.options = options // 保存用户的原配置
   effectFn.id = uid++ // effect 的ID
@@ -43,7 +50,7 @@ export function effect (fn: () => void, options?: EffectOptions){
   return effectFn
 }
 
-type Deps =  Set<() => void>
+type Deps =  Set<ActiveEffectType>
 
 type KeyToDepMap = Map<any, Deps>
 
@@ -113,6 +120,12 @@ export function trigger(target:object, key: string | symbol, type: TriggerOpType
 
 function triggerEffects(dep:Deps){
   for (const effect of dep.keys()) {
-    effect()
+    // computed函数携带的特俗字段sch
+    // computed函数会根据get字段来调用对应的effect，所以不需要再trigger中调用
+    if(effect.options?.sch){
+      effect.options?.sch()
+    }else{
+       effect()
+    }
   }
 }
