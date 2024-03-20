@@ -8,6 +8,9 @@ const isIntegerKey = (key) => isString(key) && key[0] != '_' && parseInt(key, 10
 const hasOwn = (target, key) => target.hasOwnProperty(key);
 const hasChange = (value, oldValue) => value !== oldValue;
 const isRef = (val) => !!val.__v_isRef;
+const isOn = (val) => RegExp(/on[^a-z]/).test(val);
+const ibBoolean = (val) => typeof val === 'boolean';
+const getNow = () => Date.now();
 
-export { hasChange, hasOwn, isArray, isFunction, isIntegerKey, isObj, isObject, isRef, isString, isSymbol };
+export { getNow, hasChange, hasOwn, ibBoolean, isArray, isFunction, isIntegerKey, isObj, isObject, isOn, isRef, isString, isSymbol };
 //# sourceMappingURL=shared.esm-bundler.js.map

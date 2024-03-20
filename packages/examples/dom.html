@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .card1 {
+      color: black;
+    }
+
+    .card2 {
+      color: blueviolet;
+    }
+
+    .card3 {
+      font-size: 40px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">猪小明</div>
+  <script src="../runtime-dom/dist/runtime-dom.global.js"></script>
+  <script>
+    const { pathProps } = VueRunTimeDom;
+
+    function click1() {
+      console.log('一号函数触发')
+    }
+    function click2() {
+      console.log('号函数触发')
+    }
+
+
+    let el = document.getElementById('app')
+
+
+    pathProps(el, 'data-a', '', '小明')
+    setTimeout(() => {
+      pathProps(el, 'data-a', '小明', { 1: 's1' })
+    }, 5000)
+    // setTimeout(() => {
+    //   pathProps(el, 'onclick', { fontSize: '22px', color: 'black' }, { color: 'red' })
+    // }, 2000)
+    // setTimeout(() => {
+    //   pathProps(el, 'style', '')
+    // }, 5000)
+  </script>
+</body>
+
+</html>

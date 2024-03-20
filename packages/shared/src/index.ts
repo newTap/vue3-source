@@ -17,3 +17,9 @@ export const hasOwn = (target: object, key: string | symbol): boolean => target.
 export const hasChange = (value:unknown, oldValue:unknown) => value !== oldValue
 
 export const isRef = (val: any) => !!val.__v_isRef
+
+export const isOn = (val: string) => RegExp(/on[^a-z]/).test(val)
+
+export const ibBoolean = (val: any):val is boolean => typeof val === 'boolean'
+
+export const getNow = () => Date.now()

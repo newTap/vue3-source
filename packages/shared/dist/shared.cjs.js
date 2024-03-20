@@ -10,14 +10,20 @@ const isIntegerKey = (key) => isString(key) && key[0] != '_' && parseInt(key, 10
 const hasOwn = (target, key) => target.hasOwnProperty(key);
 const hasChange = (value, oldValue) => value !== oldValue;
 const isRef = (val) => !!val.__v_isRef;
+const isOn = (val) => RegExp(/on[^a-z]/).test(val);
+const ibBoolean = (val) => typeof val === 'boolean';
+const getNow = () => Date.now();
 
+exports.getNow = getNow;
 exports.hasChange = hasChange;
 exports.hasOwn = hasOwn;
+exports.ibBoolean = ibBoolean;
 exports.isArray = isArray;
 exports.isFunction = isFunction;
 exports.isIntegerKey = isIntegerKey;
 exports.isObj = isObj;
 exports.isObject = isObject;
+exports.isOn = isOn;
 exports.isRef = isRef;
 exports.isString = isString;
 exports.isSymbol = isSymbol;
